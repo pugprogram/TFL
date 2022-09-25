@@ -1,0 +1,222 @@
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <map>
+#include <vector>
+
+using namespace std;
+
+//for (auto const& pair : answer) {
+     //std::cout << "{" << pair.first << "} = {" << pair.second << "}\n";
+ //}
+
+vector <char> variables;
+map<char, int> constructors;
+string firstterm;
+string secondterm;
+
+//map <string, string> answer;
+//string samenum;
+
+struct Tree {
+    char value;
+    int num;
+    int var;
+    struct Tree* left;
+    struct Tree* right;
+
+};
+
+
+
+
+
+struct Tree* Term_analysis(struct Tree* p,struct Tree* q,string str,int i){
+     map <char, int> ::iterator it;
+    char dop_str;
+    int find=0;
+    while ((str[i]==')')||(str[i]==',')||(str[i]=='(')){
+        i++;
+        
+    } 
+    
+     for (i;(str[i]!='(')&&(str[i]!=',')&&(str[i]!=')')&&(i!=str.size());i++){
+        dop_str=str[i];
+        
+    }
+
+    if (p==NULL){
+        p = (struct Tree*)malloc(sizeof(struct Tree));
+        p->value=dop_str;
+        p->left=NULL;
+        p->right=NULL;
+        p->var=0;
+        p->num=0;
+
+    } 
+    
+    
+    
+    it = constructors.find(dop_str);
+    if (it!=constructors.end()){
+            if (q!=NULL) q->num--;
+    p->num=constructors[dop_str];
+    
+    if (p->num){
+        p->left= Term_analysis(p->left,p,str,i);
+    } 
+    if ((q!=NULL)&&(q->num))  {
+        int j=i+1;
+        while (true){
+            if ((str[i]==')')&&(str[j]==',')) break;
+            i++;
+            j++;
+        }
+        p->right=Term_analysis(p->right,q,str,i);
+    }
+    }
+   for (int j=0;j<variables.size();j++){
+        if (dop_str==variables[j]) {
+            p->var=1;
+            find=1;
+        }
+    }
+    if (find){
+        if (q!=NULL) {
+            q->num--;
+            
+           if (q->num) {
+            p->right=Term_analysis(p->right,q,str,i);
+           }
+        }    
+    }
+    return p;
+
+}
+
+ 
+void Printtree(struct Tree* p){
+    cout<<p->value<<"\n";
+    if (p->left!=NULL) Printtree(p->left); 
+    if (p->right!=NULL) Printtree(p->right);
+}
+
+void Constructors(string str) {
+    
+    char letters;
+    string numbers;
+    int num = 0;
+    int r = 0;
+
+    for (int i = 0; i < str.size(); i++) {
+        
+        if (str[i] == '(') {
+            int j=i-1;
+            letters=str[j];
+            //cout<<letters;
+            r=1;
+            continue;
+        }
+        if (str[i] == ',') continue;
+        if (r){
+            numbers.push_back(str[i]);
+            if (str[i]==')'){
+            num = stoi(numbers);
+            constructors[letters] = num;
+            numbers.clear();
+            num = 0;
+            r = 0;
+            continue;
+            }
+        }
+    
+        
+       
+    } 
+    
+}
+
+
+
+
+int main()
+{
+    int find_constructors;
+    int find_variables;
+    int find_firstterm;
+    int find_secondterm;
+    string str;
+    ifstream in("test2.txt");
+    if (!in) {
+      
+        return -1;
+    }
+    while (in) {
+        in >> str;
+        if (str=="constructors") {
+            in >> str;
+            if (str!="=") return -1;
+            find_constructors = 1;
+            while (true) {
+                
+                in >>str;
+                if (str == "variables") break;
+                Constructors(str);
+                
+            }
+            
+        }
+    
+        
+        if (str == "variables") {
+            in >> str;
+            if (str != "=") return -1;
+            in >> str;
+            find_variables = 1;
+  
+
+
+            int last_elem = 0;
+            while (true) {
+                
+                for (int i=0; i < str.size(); i++) {
+                     int j=i-1;
+                    if (str[i] == ',') {
+                        variables.push_back(str[j]);
+                        last_elem = 1;
+                        break;
+                    }
+                }
+                
+                if (str == "First") break;
+                if (!last_elem) variables.push_back(str[0]);
+                in >> str;
+                
+                last_elem = 0;
+            }
+        }
+        
+        if (str == "First") {
+            in >> str;
+            in >> str;
+            firstterm = str;
+        }
+        in >> str;
+        if (str == "Second") {
+            in >> str;
+            in >> str;
+            secondterm = str;
+            
+        }
+        
+    }
+
+    string let="x0";
+    Tree* term1=NULL;
+    Tree* term2=NULL;
+    term1=Term_analysis(term1,NULL,firstterm,0);
+    term2=Term_analysis(term2,NULL,secondterm,0);
+    Printtree(term1);
+    cout<<"je"<<"\n";
+    Printtree(term2);
+}
