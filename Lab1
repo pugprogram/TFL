@@ -54,9 +54,7 @@ struct Tree* Term_analysis(struct Tree* p,struct Tree* q,string str,int i){
         p->num=0;
 
     } 
-    
-    
-    
+
     it = constructors.find(dop_str);
     if (it!=constructors.end()){
             if (q!=NULL) q->num--;
@@ -136,7 +134,54 @@ void Constructors(string str) {
     
 }
 
+string commonpart;
+int error=0;
 
+void CheckTree(struct Tree* term1, struct Tree* term2,int i){
+    int f=0;
+    int num=0;
+    string dop_str;
+    if ((!term1->var)&&(!term2->var)){
+        if (term1->value!=term2->value) error=1;
+        dop_str+=term1->value;
+        dop_str+='(';
+        num=constructors[term1->value];
+        for (int j=1;j<num;j++) dop_str+=",";
+        dop_str+=')';
+        commonpart.insert(i,dop_str);
+        dop_str.clear();
+        if (term1->left!=NULL) CheckTree(term1->left,term2->left,i+2);
+        if (term1->right!=NULL){
+            int k=i+1;
+            while (true){
+                if ((commonpart[k]==',')&&(commonpart[i]==')')) break;
+                i++;
+                k++;
+            }
+            CheckTree(term1->right,term2->right,i+2);
+        } 
+    }
+    if ((term1->var)&&(term2->var)){
+        dop_str+=term1->value;
+        commonpart.insert(i,dop_str);
+        dop_str.clear();
+        if ((term1->right!=NULL)&&(term2->right!=NULL)) CheckTree(term1->right,term2->right,i+2);
+    }
+    if ((term1->var)&&(!term2->var)){
+         dop_str+=term1->value;
+        commonpart.insert(i,dop_str);
+        dop_str.clear();
+        if ((term1->right!=NULL)&&(term2->right!=NULL)) CheckTree(term1->right,term2->right,i+2);
+    }
+
+    if ((!term1->var)&&(term2->var)){
+         dop_str+=term2->value;
+        commonpart.insert(i,dop_str);
+        dop_str.clear();
+        if ((term1->right!=NULL)&&(term2->right!=NULL)) CheckTree(term1->right,term2->right,i+2);
+    }
+    
+}
 
 
 int main()
@@ -146,7 +191,7 @@ int main()
     int find_firstterm;
     int find_secondterm;
     string str;
-    ifstream in("test2.txt");
+    ifstream in("test4.txt");
     if (!in) {
       
         return -1;
@@ -213,10 +258,14 @@ int main()
 
     string let="x0";
     Tree* term1=NULL;
-    Tree* term2=NULL;
+    
     term1=Term_analysis(term1,NULL,firstterm,0);
+    //Printtree(term1);
+    Tree* term2=NULL;
     term2=Term_analysis(term2,NULL,secondterm,0);
-    Printtree(term1);
-    cout<<"je"<<"\n";
-    Printtree(term2);
+    //Printtree(term1);
+     CheckTree(term1,term2,0);
+   
+    if (error==0) cout<<commonpart; 
+    else cout<<"ERRor";
 }
