@@ -6,17 +6,17 @@
 
 using namespace std;
 
-//for (auto const& pair : answer) {
-     //std::cout << "{" << pair.first << "} = {" << pair.second << "}\n";
- //}
 
 vector <char> variables;
 map<char, int> constructors;
 string firstterm;
 string secondterm;
 
-//map <string, string> answer;
-//string samenum;
+struct Multy{
+    string key;
+    string num;
+    struct Multy* next;
+};
 
 struct Tree {
     char value;
@@ -27,9 +27,42 @@ struct Tree {
 
 };
 
+struct Multy* answer=NULL;
 
 
+int k=0;
 
+struct Multy* CreateMulty(struct Multy* p,int i){
+
+    if (p==NULL){
+        p=new(struct Multy);
+        if (!i){
+            p->key="x0";
+            p->num=firstterm+','+secondterm;
+            p->next=NULL;
+            i++;
+            p->next=CreateMulty(p->next,i);
+        }
+        else {
+            p->key=variables[k];
+            p->num="";
+            p->next=NULL;
+            k++;
+            
+        }
+    }
+    while (k<variables.size()){
+        p->next=CreateMulty(p->next,i);
+    }
+    return p;
+}
+
+void Printequation(struct Multy* p){
+    cout<<'{'<<p->key<<"} = {";
+    if (p->num.size()) cout<<p->num;
+    cout<<"}\n";
+    if (p->next!=NULL) Printequation(p->next);
+}
 
 struct Tree* Term_analysis(struct Tree* p,struct Tree* q,string str,int i){
      map <char, int> ::iterator it;
@@ -37,14 +70,13 @@ struct Tree* Term_analysis(struct Tree* p,struct Tree* q,string str,int i){
     int find=0;
     while ((str[i]==')')||(str[i]==',')||(str[i]=='(')){
         i++;
-        
     } 
-    
+    k=i;
      for (i;(str[i]!='(')&&(str[i]!=',')&&(str[i]!=')')&&(i!=str.size());i++){
         dop_str=str[i];
         
     }
-
+    k=i;
     if (p==NULL){
         p = (struct Tree*)malloc(sizeof(struct Tree));
         p->value=dop_str;
@@ -61,16 +93,11 @@ struct Tree* Term_analysis(struct Tree* p,struct Tree* q,string str,int i){
     p->num=constructors[dop_str];
     
     if (p->num){
-        p->left= Term_analysis(p->left,p,str,i);
+        p->left= Term_analysis(p->left,p,str,k);
     } 
     if ((q!=NULL)&&(q->num))  {
-        int j=i+1;
-        while (true){
-            if ((str[i]==')')&&(str[j]==',')) break;
-            i++;
-            j++;
-        }
-        p->right=Term_analysis(p->right,q,str,i);
+
+        p->right=Term_analysis(p->right,q,str,k);
     }
     }
    for (int j=0;j<variables.size();j++){
@@ -84,7 +111,7 @@ struct Tree* Term_analysis(struct Tree* p,struct Tree* q,string str,int i){
             q->num--;
             
            if (q->num) {
-            p->right=Term_analysis(p->right,q,str,i);
+            p->right=Term_analysis(p->right,q,str,k);
            }
         }    
     }
@@ -111,7 +138,6 @@ void Constructors(string str) {
         if (str[i] == '(') {
             int j=i-1;
             letters=str[j];
-            //cout<<letters;
             r=1;
             continue;
         }
@@ -137,61 +163,374 @@ void Constructors(string str) {
 string commonpart;
 int error=0;
 
+int l=0;
+int num=0;
+
+string helper(struct Tree* term,string t){
+    string dop_str;
+    dop_str+=term->value;
+    if (!term->var) {
+        int n=constructors[term->value];
+        if (n) dop_str+='(';
+        t+=dop_str;
+        if (term->left!=NULL){
+            t=helper(term->left,t);
+            t+=')';
+        } 
+
+        if (term->right!=NULL){
+            t+=',';
+            t=helper(term->right,t);
+        } 
+    }    
+   if (term->var){
+    t+=dop_str;
+    if (term->right!=NULL){
+        t+=',';
+        t=helper(term->right,t);
+    }
+   }
+   return t;
+}
+
+struct Multy* CreateNewBlock(struct Multy* p,string str){
+    if (p!=NULL) p->next=CreateNewBlock(p->next,str);
+    else{
+        p=new(struct Multy);
+        p->key=str;
+        p->next=NULL;
+        p->num="";
+    }
+    return p;
+}
+
+void Substitutions(struct Tree* term1,struct Tree* term2){
+    struct Multy* dop=answer;
+    string dop_str;
+    string dop_str2;
+    string t="";
+    if ((!term1->var)&&(!term2->var)){
+        if (term1->left!=NULL){
+            Substitutions (term1->left,term2->left);
+        } 
+        if (term1->right!=NULL){
+            Substitutions(term1->right,term2->right);
+        } 
+    }
+
+    if ((term1->var)&&(term2->var)) {
+            dop_str.clear();
+            dop_str2.clear();
+            dop_str+=term1->value;
+        while (dop!=NULL){
+            dop_str2=dop->key;
+            if (dop_str2.find(dop_str)==-1) dop=dop->next;
+            else{
+                dop_str2.clear();
+                dop_str2=term2->value;
+                if (dop->key.find(dop_str2)==-1){
+                dop->key+=',';
+                dop->key+=term2->value;
+                dop_str.clear();
+                dop_str2.clear();
+                }
+                break;
+            }
+        }
+        if (term1->right!=NULL) Substitutions(term1->right,term2->right);
+    }
+    if ((term1->var)&&(!term2->var)){
+            dop_str.clear();
+            dop_str2.clear();
+            dop_str+=term1->value;
+            while (dop!=NULL){
+            dop_str2=dop->key;
+            if (dop_str2.find(dop_str)==-1) dop=dop->next;
+            else break;
+         }
+        if (dop->num.size()){
+            answer=CreateNewBlock(answer,dop_str);
+            while (dop->next!=NULL) dop=dop->next;
+        }
+
+        dop->num+=term2->value;
+        dop->num+='(';
+        struct Tree* dop_5=term2->left;
+        t=helper(dop_5,t);
+        dop->num+=t;
+        dop->num+=')';
+        if (term2->right!=NULL) Substitutions(term1->right,term2->right);
+    }
+    if ((!term1->var)&&(term2->var)){
+         dop_str.clear();
+        dop_str2.clear();
+        dop_str+=term2->value;
+         while (dop!=NULL){
+            dop_str2=dop->key;
+            if (dop_str2.find(dop_str)==-1) dop=dop->next;
+            else break;
+        }
+        if (dop->num.size()){
+            answer=CreateNewBlock(answer,dop_str);
+            while (dop->next!=NULL) dop=dop->next;
+        }
+
+        dop->num+=term1->value;
+        dop->num+='(';
+        struct Tree* dop_6=term1->left;
+        t=helper(dop_6,t);
+        dop->num+=t;
+        dop->num+=')';
+        dop_str2.clear();
+        dop_str.clear();
+ 
+        if (term1->right!=NULL) Substitutions(term1->right,term2->right);
+    }
+    return;
+
+}
+
 void CheckTree(struct Tree* term1, struct Tree* term2,int i){
     int f=0;
-    int num=0;
     string dop_str;
+   
+    num++;
     if ((!term1->var)&&(!term2->var)){
         if (term1->value!=term2->value) error=1;
         dop_str+=term1->value;
         dop_str+='(';
-        num=constructors[term1->value];
-        for (int j=1;j<num;j++) dop_str+=",";
-        dop_str+=')';
-        commonpart.insert(i,dop_str);
+
+        commonpart.insert(l,dop_str);
         dop_str.clear();
-        if (term1->left!=NULL) CheckTree(term1->left,term2->left,i+2);
+        i++;
+        if (term1->left!=NULL) {
+            l=l+2;
+            CheckTree(term1->left,term2->left,i);
+        }
         if (term1->right!=NULL){
-            int k=i+1;
-            while (true){
-                if ((commonpart[k]==',')&&(commonpart[i]==')')) break;
-                i++;
-                k++;
+            dop_str+=',';
+            commonpart.insert(l,dop_str);
+            l++;
+            dop_str.clear();
+            
+            CheckTree(term1->right,term2->right,i);
+        }
+        else{
+            if (i!=1){
+                dop_str+=')';
+                commonpart.insert(l,dop_str);
+                dop_str.clear();
             }
-            CheckTree(term1->right,term2->right,i+2);
-        } 
+             
+        }
     }
     if ((term1->var)&&(term2->var)){
         dop_str+=term1->value;
-        commonpart.insert(i,dop_str);
+        commonpart.insert(l,dop_str);
         dop_str.clear();
-        if ((term1->right!=NULL)&&(term2->right!=NULL)) CheckTree(term1->right,term2->right,i+2);
+        i++;
+        if ((term1->right!=NULL)&&(term2->right!=NULL)){
+            l++;
+            dop_str+=',';
+            commonpart.insert(l,dop_str);
+            dop_str.clear();
+            l++;
+            CheckTree(term1->right,term2->right,i);
+        } 
+        else{
+            if (num!=1){
+                l++;
+                dop_str+=')';
+                commonpart.insert(l,dop_str);
+                dop_str.clear();
+                l++;
+            }
+            
+        }
     }
     if ((term1->var)&&(!term2->var)){
+        i++;
          dop_str+=term1->value;
-        commonpart.insert(i,dop_str);
+        commonpart.insert(l,dop_str);
         dop_str.clear();
-        if ((term1->right!=NULL)&&(term2->right!=NULL)) CheckTree(term1->right,term2->right,i+2);
+        if ((term1->right!=NULL)&&(term2->right!=NULL)){
+            l++;
+            dop_str+=',';
+            commonpart.insert(l,dop_str);
+            dop_str.clear();
+            l++;
+            CheckTree(term1->right,term2->right,i);
+        } 
+        else{
+            if (num!=1){
+                l++;
+                dop_str+=')';
+                commonpart.insert(l,dop_str);
+                dop_str.clear();
+                l++;
+            }
+            
+        }
     }
 
     if ((!term1->var)&&(term2->var)){
+        i++;
          dop_str+=term2->value;
-        commonpart.insert(i,dop_str);
+        commonpart.insert(l,dop_str);
         dop_str.clear();
-        if ((term1->right!=NULL)&&(term2->right!=NULL)) CheckTree(term1->right,term2->right,i+2);
+        if ((term1->right!=NULL)&&(term2->right!=NULL)){
+            l++;
+            dop_str+=',';
+             commonpart.insert(l,dop_str);
+            dop_str.clear();
+            l++;
+            CheckTree(term1->right,term2->right,i);
+        } 
+        else{
+            if (num!=1){
+                l++;
+                 dop_str+=')';
+                commonpart.insert(l,dop_str);
+                dop_str.clear();
+                l++;
+            }
+            
+        }
     }
     
 }
 
+int er2=0;
+void Contification(){
+    struct Multy* p=answer;
+    struct Multy* q=p;
+    struct Multy* prev;
+    char x;
+    char dop;
+    char y;
+    int i=0;
+    while (p!=NULL){
+        if (p->next==NULL) break;
+        prev = p;
+        q=p->next;
+        if (p->key[i]==',') i++;
+        x=p->key[i];
+        while (q!=NULL){
+           
+            if (q->key.find(x)!=-1){
+                if ((!q->num.size())&&(!p->num.size())){   
+                    
+                for (int j=0;j<q->key.size();j++){
+                        if ((q->key[j]==',')||(q->key[j]==x)) continue;
+                        dop=q->key[j];
+                        p->key+=',';
+                        p->key+=dop;
+                    }
+                prev->next=q->next;
+                delete(q);
+                q=prev;
+                }
+                if ((!p->num.size())&&(q->num.size())){
+                    for (int j=0;j<p->key.size();j++){
+                        if (p->key[j]==',') continue;
+                        y=p->key[j];
+                        if (q->num.find(y)!=-1){
+                            er2=1;
+                            return;
+                        }
+                    }
+                    for (int j=0;j<q->key.size();j++){
+                        if (q->key[j]=',') continue;;
+                        y=q->key[j];
+                        if (q->num.find (y)!=-1){
+                            er2=1;
+                            return;
+                        }
+                    }
+                    p->num=q->num;
+                    for (int j=0;j<q->key.size();j++){
+                        if (q->key[j]==',') continue;
+                        dop=q->key[j];
+                        if (p->key.find(dop)==-1){
+                            p->key+=',';
+                            p->key+=dop;
+                        }
+                    }
+                    prev->next=q->next;
+                    delete(q);
+                    q=prev;
+                }
+                if ((p->num.size())&&(!q->num.size())){
+                    for (int j=0;j<p->key.size();j++){
+                        if (p->key[j]==',') continue;
+                        y=p->key[j];
+                        if (p->num.find(y)!=-1){
+                            er2=1;
+                            return;
+                        }
+                    }
+                    for (int j=0;j<q->key.size();j++){
+                        if (q->key[j]=',') continue;;
+                        y=q->key[j];
+                        if (p->num.find (y)!=-1){
+                            er2=1;
+                            return;
+                        }
+                    }
 
-int main()
-{
+
+
+                    for (int j=0;j<q->key.size();j++){
+                        if (q->key[j]==',') continue;
+                        dop=q->key[j];
+                        if (p->key.find(dop)==-1){
+                            p->key+=',';
+                            p->key+=dop;
+                        }
+                    }
+                    prev->next=q->next;
+                    delete(q);
+                    q=prev;
+                }
+                if ((p->num.size())&&(q->num.size())){
+                    k=0;
+                    struct Tree* dop_term1=NULL;
+                    dop_term1=Term_analysis(dop_term1,NULL,p->num,0);
+                    struct Tree* dop_term2=NULL;
+                    k=0;
+                    dop_term2=Term_analysis(dop_term2,NULL,q->num,0);
+                    l=0;
+                    num=0;
+                    commonpart.clear();
+                    CheckTree(dop_term1,dop_term2,0);
+                    p->num.clear();
+                    p->num+=commonpart;
+                    prev->next=q->next;
+                    delete(q);
+                    q=prev;
+                }
+            }
+            prev=q;
+            q=q->next;
+        }
+    i++;
+    if (i==p->key.size()){
+        p=p->next;
+        i=0;
+    }
+}
+}
+
+
+
+
+int main(){
     int find_constructors;
     int find_variables;
     int find_firstterm;
     int find_secondterm;
     string str;
-    ifstream in("test4.txt");
+    ifstream in("test1.txt");
     if (!in) {
       
         return -1;
@@ -223,17 +562,15 @@ int main()
 
             int last_elem = 0;
             while (true) {
-                
+                if (str == "First") break;
+
                 for (int i=0; i < str.size(); i++) {
-                     int j=i-1;
-                    if (str[i] == ',') {
-                        variables.push_back(str[j]);
-                        last_elem = 1;
-                        break;
+                    if (str[i] != ',') {
+                        variables.push_back(str[i]);
+                        last_elem=1;
                     }
                 }
                 
-                if (str == "First") break;
                 if (!last_elem) variables.push_back(str[0]);
                 in >> str;
                 
@@ -255,17 +592,34 @@ int main()
         }
         
     }
+    
+    
+    answer=CreateMulty(answer,0);
+    k=0;
+    struct Multy* p=answer;
+    answer=answer->next;
+    delete(p);
 
-    string let="x0";
     Tree* term1=NULL;
     
     term1=Term_analysis(term1,NULL,firstterm,0);
-    //Printtree(term1);
+    
     Tree* term2=NULL;
+    k=0;
     term2=Term_analysis(term2,NULL,secondterm,0);
-    //Printtree(term1);
-     CheckTree(term1,term2,0);
+    k=0;
+    CheckTree(term1,term2,0);
+   l=0;
+   string commonpart_base=commonpart;
+    if (error==0) cout<<commonpart_base<<"\n"; 
+    else cout<<"error";
+    Substitutions(term1,term2);
+    Printequation(answer);
+    Substitutions(term1,term2);
+   Contification();
+   cout<<"\n";
+   error=0;
+    if (!er2) Printequation(answer);
+    else cout<<"error";
    
-    if (error==0) cout<<commonpart; 
-    else cout<<"ERRor";
 }
