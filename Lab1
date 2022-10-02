@@ -209,6 +209,9 @@ void Substitutions(struct Tree* term1,struct Tree* term2){
     string dop_str;
     string dop_str2;
     string t="";
+    
+   
+
     if ((!term1->var)&&(!term2->var)){
         if (term1->left!=NULL){
             Substitutions (term1->left,term2->left);
@@ -254,12 +257,14 @@ void Substitutions(struct Tree* term1,struct Tree* term2){
         }
 
         dop->num+=term2->value;
-        dop->num+='(';
+        int dt=constructors[term2->value];
+        if (dt){dop->num+='(';
         struct Tree* dop_5=term2->left;
         t=helper(dop_5,t);
         dop->num+=t;
         dop->num+=')';
-        if (term2->right!=NULL) Substitutions(term1->right,term2->right);
+        }
+        if ((term2->right!=NULL)&&(term1->right!=NULL)) Substitutions(term1->right,term2->right);
     }
     if ((!term1->var)&&(term2->var)){
          dop_str.clear();
@@ -276,253 +281,274 @@ void Substitutions(struct Tree* term1,struct Tree* term2){
         }
 
         dop->num+=term1->value;
-        dop->num+='(';
+        int dt=constructors[term1->value];
+        if (dt){dop->num+='(';
         struct Tree* dop_6=term1->left;
         t=helper(dop_6,t);
         dop->num+=t;
         dop->num+=')';
+        }
         dop_str2.clear();
         dop_str.clear();
  
-        if (term1->right!=NULL) Substitutions(term1->right,term2->right);
+        if ((term1->right!=NULL)&&(term2->right!=NULL)) Substitutions(term1->right,term2->right);
     }
     return;
 
 }
 
-void CheckTree(struct Tree* term1, struct Tree* term2,int i){
-    int f=0;
+string CheckTree(struct Tree* term1, struct Tree* term2,string t){
     string dop_str;
-   
-    num++;
-    if ((!term1->var)&&(!term2->var)){
-        if (term1->value!=term2->value) error=1;
-        dop_str+=term1->value;
-        dop_str+='(';
 
-        commonpart.insert(l,dop_str);
-        dop_str.clear();
-        i++;
+    if ((!term1->var)&&(!term2->var)){
+        if (term1->value!=term2->value) {
+            error=1;
+            return "err";
+            }
+        dop_str+=term1->value;
+        int dt=constructors[term1->value];
+
+        if (dt)dop_str+='(';
+        t+=dop_str;
         if (term1->left!=NULL) {
-            l=l+2;
-            CheckTree(term1->left,term2->left,i);
+            
+            t=CheckTree(term1->left,term2->left,t);
+           if (dt) t+=')';
         }
         if (term1->right!=NULL){
-            dop_str+=',';
-            commonpart.insert(l,dop_str);
-            l++;
-            dop_str.clear();
+            t+=',';
             
-            CheckTree(term1->right,term2->right,i);
-        }
-        else{
-            if (i!=1){
-                dop_str+=')';
-                commonpart.insert(l,dop_str);
-                dop_str.clear();
-            }
-             
+            t=CheckTree(term1->right,term2->right,t);
         }
     }
     if ((term1->var)&&(term2->var)){
-        dop_str+=term1->value;
-        commonpart.insert(l,dop_str);
-        dop_str.clear();
-        i++;
+        t+=term1->value;
         if ((term1->right!=NULL)&&(term2->right!=NULL)){
-            l++;
-            dop_str+=',';
-            commonpart.insert(l,dop_str);
-            dop_str.clear();
-            l++;
-            CheckTree(term1->right,term2->right,i);
+            t+=',';
+            t=CheckTree(term1->right,term2->right,t);
         } 
-        else{
-            if (num!=1){
-                l++;
-                dop_str+=')';
-                commonpart.insert(l,dop_str);
-                dop_str.clear();
-                l++;
-            }
-            
-        }
     }
     if ((term1->var)&&(!term2->var)){
-        i++;
-         dop_str+=term1->value;
-        commonpart.insert(l,dop_str);
-        dop_str.clear();
+         t+=term1->value;
         if ((term1->right!=NULL)&&(term2->right!=NULL)){
-            l++;
-            dop_str+=',';
-            commonpart.insert(l,dop_str);
-            dop_str.clear();
-            l++;
-            CheckTree(term1->right,term2->right,i);
+            t+=',';
+            t=CheckTree(term1->right,term2->right,t);
         } 
-        else{
-            if (num!=1){
-                l++;
-                dop_str+=')';
-                commonpart.insert(l,dop_str);
-                dop_str.clear();
-                l++;
-            }
-            
-        }
     }
-
     if ((!term1->var)&&(term2->var)){
-        i++;
-         dop_str+=term2->value;
-        commonpart.insert(l,dop_str);
-        dop_str.clear();
+         t+=term2->value;
         if ((term1->right!=NULL)&&(term2->right!=NULL)){
-            l++;
-            dop_str+=',';
-             commonpart.insert(l,dop_str);
-            dop_str.clear();
-            l++;
-            CheckTree(term1->right,term2->right,i);
+            t+=',';
+            t=CheckTree(term1->right,term2->right,t);
         } 
-        else{
-            if (num!=1){
-                l++;
-                 dop_str+=')';
-                commonpart.insert(l,dop_str);
-                dop_str.clear();
-                l++;
-            }
-            
-        }
     }
-    
+    return t;
 }
 
 int er2=0;
+void Delete_elem(struct Multy* dop, struct Multy* prev){
+    struct Multy* dop_p=answer;
+    answer=prev;
+    answer->next=dop->next;
+    answer=dop;
+    delete(answer);
+    answer=dop_p;
+}
+
+
 void Contification(){
     struct Multy* p=answer;
     struct Multy* q=p;
     struct Multy* prev;
+    struct Multy* dop_p=answer;
     char x;
     char dop;
     char y;
     int i=0;
+    int begin=0;
     while (p!=NULL){
+        begin=0;
         if (p->next==NULL) break;
         prev = p;
         q=p->next;
         if (p->key[i]==',') i++;
         x=p->key[i];
+        if (p->num.find(x)!=-1){
+            error=1;
+            return;
+        }
         while (q!=NULL){
-           
-            if (q->key.find(x)!=-1){
-                if ((!q->num.size())&&(!p->num.size())){   
-                    
-                for (int j=0;j<q->key.size();j++){
-                        if ((q->key[j]==',')||(q->key[j]==x)) continue;
-                        dop=q->key[j];
-                        p->key+=',';
-                        p->key+=dop;
-                    }
-                prev->next=q->next;
-                delete(q);
-                q=prev;
+
+           if (q->num.size()){
+            for (int j=0;j<q->key.size();j++){
+                if ((q->key[j])==',') continue;
+                y=q->key[j];
+                if (q->num.find(y)!=-1){
+                    error=1;
+                    return;
                 }
-                if ((!p->num.size())&&(q->num.size())){
+            }
+           }
+
+            if (q->key.find(x)!=-1){
+               
+                if ((!q->num.size())&&(!p->num.size())){   
+                    answer=p;
+                   
+                for (int j=0;j<q->key.size();j++){
+                        if (q->key[j]==',') continue;
+                        dop=q->key[j];
+                        if (answer->key.find(dop)==-1){
+                            answer->key+=',';
+                            answer->key+=dop;
+                        }
+                        
+                    }
+                answer=dop_p;
+                Delete_elem(q,prev);
+                q=prev;
+                
+                }else{
+                    if ((!p->num.size())&&(q->num.size())){
+
                     for (int j=0;j<p->key.size();j++){
                         if (p->key[j]==',') continue;
                         y=p->key[j];
                         if (q->num.find(y)!=-1){
-                            er2=1;
+                            error=1;
                             return;
                         }
                     }
-                    for (int j=0;j<q->key.size();j++){
-                        if (q->key[j]=',') continue;;
-                        y=q->key[j];
-                        if (q->num.find (y)!=-1){
-                            er2=1;
-                            return;
-                        }
-                    }
-                    p->num=q->num;
+                    answer=p;
+                    answer->num=q->num;
                     for (int j=0;j<q->key.size();j++){
                         if (q->key[j]==',') continue;
                         dop=q->key[j];
-                        if (p->key.find(dop)==-1){
-                            p->key+=',';
-                            p->key+=dop;
+                        if (answer->key.find(dop)==-1){
+                            answer->key+=',';
+                            answer->key+=dop;
                         }
                     }
-                    prev->next=q->next;
-                    delete(q);
+                    answer=dop_p;
+                    Delete_elem(q,prev);
                     q=prev;
                 }
-                if ((p->num.size())&&(!q->num.size())){
+                else {
+                     if ((p->num.size())&&(!q->num.size())){
+                        
+                        for (int j=0;j<q->key.size();j++){
+                        if (q->key[j]==',') continue;
+                        y=q->key[j];
+                        if (p->num.find(y)!=-1){
+                            error=1;
+                            return;
+                        }
+                        }
+                    answer=p;
+                    
+                    for (int j=0;j<q->key.size();j++){
+
+                        if (q->key[j]==',') continue;
+                        
+                        dop=q->key[j];
+                       
+                        if (p->key.find(dop)==-1){
+                            answer->key+=',';
+                            answer->key+=dop;
+                        }
+                    }
+                    answer=dop_p;
+                    Delete_elem(q,prev);
+                    q=prev;
+                    
+
+                }
+                else {
+                    if ((p->num.size())&&(q->num.size())){
+
+                    for (int j=0;j<q->key.size();j++){
+                        if (q->key[j]==',') continue;
+                        y=q->key[j];
+                        if (p->num.find(y)!=-1){
+                            error=1;
+                            return;
+                        }
+                        }
                     for (int j=0;j<p->key.size();j++){
                         if (p->key[j]==',') continue;
                         y=p->key[j];
-                        if (p->num.find(y)!=-1){
-                            er2=1;
+                        if (q->num.find(y)!=-1){
+                            error=1;
                             return;
                         }
                     }
-                    for (int j=0;j<q->key.size();j++){
-                        if (q->key[j]=',') continue;;
-                        y=q->key[j];
-                        if (p->num.find (y)!=-1){
-                            er2=1;
-                            return;
-                        }
-                    }
-
-
-
-                    for (int j=0;j<q->key.size();j++){
-                        if (q->key[j]==',') continue;
-                        dop=q->key[j];
-                        if (p->key.find(dop)==-1){
-                            p->key+=',';
-                            p->key+=dop;
-                        }
-                    }
-                    prev->next=q->next;
-                    delete(q);
-                    q=prev;
-                }
-                if ((p->num.size())&&(q->num.size())){
                     k=0;
+                    begin++;
                     struct Tree* dop_term1=NULL;
+                
                     dop_term1=Term_analysis(dop_term1,NULL,p->num,0);
+               
                     struct Tree* dop_term2=NULL;
                     k=0;
+                    
                     dop_term2=Term_analysis(dop_term2,NULL,q->num,0);
+                 
                     l=0;
                     num=0;
                     commonpart.clear();
-                    CheckTree(dop_term1,dop_term2,0);
-                    p->num.clear();
-                    p->num+=commonpart;
-                    prev->next=q->next;
-                    delete(q);
+                    string dop_str15;
+                    dop_str15=CheckTree(dop_term1,dop_term2,dop_str15);
+                    answer=p;
+                    answer->num.clear();
+                    
+                    answer->num+=dop_str15;
+                    answer=dop_p;
+                    Delete_elem(q,prev);
+                    Substitutions(dop_term1,dop_term2);
+                    if (error) return;
+                    q=answer;
+                    prev=answer;
+                    p=answer;
+                    break;
+                }
+                }
+                }
+                }
+            }
+            else{
+                if ((p->num.size())&&(q->num.size())){
+                     if ((p->num)==(q->num)){
+                    answer=p;
+                    for (int j=0;j<q->key.size();j++){
+                        if (q->key[j]==',') continue;
+                        y=q->key[j];
+                        if (answer->key.find(y)==-1){
+                            answer->key+=',';
+                            answer->key+=y;
+                        }
+                    }
+
+                    answer=dop_p;
+                    Delete_elem(q,prev);
                     q=prev;
                 }
+                }
+               
             }
             prev=q;
             q=q->next;
         }
+   if ((q==answer)&&(p==answer)&&(prev==answer)) i=0;
+   else {
     i++;
     if (i==p->key.size()){
         p=p->next;
         i=0;
     }
+   }
+        
 }
 }
-
-
-
 
 int main(){
     int find_constructors;
@@ -530,7 +556,7 @@ int main(){
     int find_firstterm;
     int find_secondterm;
     string str;
-    ifstream in("test1.txt");
+    ifstream in("test9.txt");
     if (!in) {
       
         return -1;
@@ -608,18 +634,17 @@ int main(){
     k=0;
     term2=Term_analysis(term2,NULL,secondterm,0);
     k=0;
-    CheckTree(term1,term2,0);
+    commonpart=CheckTree(term1,term2,commonpart);
    l=0;
    string commonpart_base=commonpart;
     if (error==0) cout<<commonpart_base<<"\n"; 
-    else cout<<"error";
+    else cout<<"error1";
     Substitutions(term1,term2);
-    Printequation(answer);
-    Substitutions(term1,term2);
+    //Printequation(answer);
+    //Substitutions(term1,term2);
    Contification();
    cout<<"\n";
-   error=0;
-    if (!er2) Printequation(answer);
-    else cout<<"error";
+    if ((!er2)&&(!error)) Printequation(answer);
+    if ((er2)||(error)) cout<<"error\n";
    
 }
