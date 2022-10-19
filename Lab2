@@ -1,0 +1,503 @@
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <map>
+#include <vector>
+
+using namespace std;
+
+string regex;
+vector <string> rules;
+vector <char> variables;
+
+
+//если конкатенация, то символ '+'
+struct Tree{
+    char symbol;
+    struct Tree* right;
+    struct Tree* left;
+};
+
+struct Myrules{
+    struct Tree* before;
+    struct Tree* after;
+    struct Myrules* next;
+};
+
+struct Subt{
+    string variables;
+    struct Tree* tree;
+    struct Subt* next;
+};
+
+struct Myrules* manyrules=NULL;
+
+int error=0;
+
+char operation[3] = {'*', '|', '+'};
+
+struct Tree* regex_tree=NULL;
+
+void Printtree(struct Tree* p){
+    if (p->symbol==' ') cout<<"$\n";
+    else cout<<p->symbol<<"\n";
+    if (p->left!=NULL){
+        Printtree(p->left); 
+    } 
+    if (p->right!=NULL){
+        Printtree(p->right);
+    } 
+}
+
+void Printrules(Myrules* p){
+    cout<<"KEY: \n";
+    Printtree(p->before);
+    cout<<"\n"<<"NUM: \n";
+    Printtree(p->after);
+    cout<<"\n";
+    if (p->next!=NULL) Printrules(p->next);
+}
+
+void PrintSubstitution(struct Subt* p){
+    if (p!=NULL){
+        cout<<p->variables<<": \n";
+        Printtree(p->tree);
+        cout<<"\n";
+        if (p->next!=NULL) PrintSubstitution(p->next);
+    }
+    else cout<<"NOT UNIFICATION";
+}
+
+int Check_for_something(string str){
+    for (int i=0;i<str.size();i++){
+        if (str[i]>='a'&&str[i]<='z'||str[i]>='A'&&str[i]<='Z') return 1;
+        if (str[i]=='|') return 1;
+    }
+    return 0;
+}
+
+struct Tree* Tree_Make(struct Tree* p, string str){
+    if (p==NULL){
+        p=new(struct Tree);
+        p->symbol=' ';
+        p->left=p->right=NULL;
+    }
+
+    if (str[0]=='('){
+        if (str[str.size()-1]=='*'){
+            p->symbol='*';
+            str.erase(0,1);
+            str.erase(str.size()-2);
+            p->left=Tree_Make(p->left,str);
+        }
+        else{
+            
+            str.erase(0,1);
+            str.erase(str.size()-1);
+            if (str[0]=='('){
+                int k=1;
+                int i=0;
+                for (i=1;(k)&&i<str.size();i++){
+                    if (str[i]=='(') k++;
+                    else if (str[i]==')') k--;
+                }
+                if (i==str.size()){
+                   p=Tree_Make(p,str);
+                }
+                else if (str[i]=='|'){
+                    p->symbol='|';
+                    p->left=Tree_Make(p->left,str.substr(0,i));
+                    p->right=Tree_Make(p->right,str.substr(i+1));
+                }
+                else   {
+
+                    int find1=Check_for_something(str.substr(0,i));
+                    int find2=Check_for_something(str.substr(i));
+                   
+                    if (find1==1&&find2==1){
+                      p->symbol='+';
+                      
+                      p->left=Tree_Make(p->left,str.substr(0,i));
+                      p->right= Tree_Make(p->right,str.substr(i));
+                    } 
+                    
+                    else if (find1==1&&find2==0) p=Tree_Make(p,str.substr(0,i));
+                    else if (find1==0&&find2==1) p=Tree_Make(p,str.substr(i));
+                }
+            }
+            else if (str.size()){
+
+                if ((str.size()==1) && (str[0]>='a'&&str[0]<='z'||str[0]>='A'&&str[0]<='Z')) p->symbol=str[0];
+                else if (str.size()==2&&str[str.size()-1]=='*'){
+                    p->symbol='*';
+                    str.erase(str.size()-1);
+                    p->left=Tree_Make(p->left,str);
+                }
+                else{
+                    int i=0;
+                    if (str[1]=='*'){
+                        if (str[2]=='|') i=2;
+                    }
+                    else{
+                        if (str[1]=='|') i=1;
+                    }
+                    if ((i==2)||(i==1)){
+                        p->symbol='|';
+                        p->left=Tree_Make(p->left,str.substr(0,i));
+                        p->right=Tree_Make(p->right,str.substr(i+1));
+                    }
+                    else{
+                        if (str[1]!='*'){
+                            int i=Check_for_something(str.substr(1));
+                            if (i){
+                                p->symbol='+';
+                                p->left=Tree_Make(p->left,str.substr(0,1));
+                                p->right=Tree_Make(p->right,str.substr(1));
+                            }
+                            else p=Tree_Make(p,str.substr(0,1));
+                        }
+                        else{
+                            int i=Check_for_something(str.substr(2));
+                            if (i){
+                                p->symbol='+';
+                                p->left=Tree_Make(p->left,str.substr(0,2));
+                                p->right=Tree_Make(p->right,str.substr(2));
+                            }
+                            else p=Tree_Make(p,str.substr(0,2));
+                        }
+                    }
+                }
+            }
+        }
+    }
+    else if ((str.size()) && (str[0]>='a'&&str[0]<='z'||str[0]>='A'&&str[0]<='Z')){
+        if (str[str.size()-1]=='*'){
+            p->symbol='*';
+            str.erase(str.size()-1);
+            p->left=Tree_Make(p->left,str);
+        }
+        else{
+            p->symbol=str[0];
+        }
+    }
+    return p;
+}
+
+
+
+
+
+string Clear_str(string str){
+    string v;
+    for(char c:str) if (c != ' ') v += c;
+    return v;
+}
+
+void Find_variables_in_regex(){
+    int find=0;
+    for (int i=0;i<regex.size();i++){
+        if (regex[i]>='a'&&regex[i]<='z'||regex[i]>='A'&&regex[i]<='Z'){
+           for (int j=0;j<variables.size();j++){
+            if (variables[j]==regex[i]){
+                find=1;
+                break;
+            }
+            
+           }
+         if (!find) variables.push_back(regex[i]);  
+        }
+        find=0;
+    }
+}
+
+
+
+struct Myrules* DeleteRules(struct Myrules* t,int i){
+    int find=rules[i].find("=");
+    string key=Clear_str(rules[i].substr(0,find));
+    string num=Clear_str(rules[i].substr(find+1));;
+    struct Tree* p=NULL;
+    p=Tree_Make(p,key);
+
+    struct Tree* q=NULL;
+    q=Tree_Make(q,num);
+
+    if (t==NULL){
+        t=new(struct Myrules);
+        t->before=p;
+        t->after=q;
+        t->next=NULL;
+    }
+    i++;
+    if (i<rules.size()) t->next=DeleteRules(t->next,i);
+    return t;
+}
+
+
+int Find_in_operation(char sym){
+    for (int i=0;i<3;i++){
+        if (sym==operation[i]){
+            return 1;
+        }
+    }
+    return 0;
+}
+
+int Find_in_variables(char sym){
+    for (int i=0;i<variables.size();i++){
+        if (variables[i]==sym) return 1;
+    }
+    return 0;
+}
+
+struct Subt* Substitution(struct Subt* p,struct Tree* regex,struct Tree* rule){
+
+    if (p==NULL){
+        p=new(struct Subt);
+        p->variables=' ';
+        p->next=NULL;
+        p->tree=NULL;
+    }
+
+    if (Find_in_operation(rule->symbol)){
+        if (rule->symbol!=regex->symbol) return NULL;
+        if (rule->left!=NULL) p=Substitution(p,regex->left,rule->left);
+         if (p==NULL) return NULL;
+        else{
+            if ((rule->symbol!='*')&&(rule->right!=NULL)) p=Substitution(p,regex->right,rule->right);
+            if (p==NULL) return NULL;
+        }
+    }
+
+
+    else if (rule->symbol>='a'&&rule->symbol<='z'||rule->symbol>='A'&&rule->symbol<='Z'){
+        if (Find_in_variables(rule->symbol)){
+            if (rule->symbol!=regex->symbol) return NULL;
+        }
+        else {
+            if (p->tree==NULL){
+                p->variables=rule->symbol;
+                p->tree=regex;
+            }
+            else {
+                p->next=Substitution(p->next,regex,rule);
+            }
+        }
+    }
+    else{
+        if (rule->symbol!=regex->symbol) return NULL;
+    }
+    return p;
+}
+
+struct Subt* Unification(struct Subt* p,struct Subt* q){
+    if (p!=NULL){
+        if (q==NULL){
+        if (p->next!=NULL) p->next=Unification(p->next,p->next);
+    }
+    else{
+        if (q->next!=NULL){
+            if (p->variables==q->next->variables){
+                p=Substitution(p,p->tree,q->next->tree);
+                if (p==NULL) return NULL;
+                else{
+                    
+                    q->next=q->next->next;
+                    
+                }
+            }
+        }
+        p=Unification(p,q->next);       
+    }
+    }
+    else p=NULL;
+    return p;
+}
+
+struct Tree* DeleteTree(struct Tree* p){
+    if (p!=NULL){
+        if (p->left!=NULL) p=DeleteTree(p->left);
+        if (p->right!=NULL) p=DeleteTree(p->right);
+        delete(p);
+    }
+    return p;
+}
+
+struct Tree* Make_tree(struct Tree* rule,struct Subt* sub){
+    if (sub!=NULL && rule!=NULL){
+        if (rule->left!=NULL){
+            if (rule->left->symbol>='a'&&rule->left->symbol<='z'||rule->left->symbol>='A'&&rule->left->symbol<='Z'){
+                 if (!Find_in_variables(rule->left->symbol)){
+                    struct Subt* dop=sub;
+                    string var;
+                    var.push_back(rule->left->symbol);
+                    while (dop->next!=NULL){
+                    if (dop->variables==var) break;
+                    else dop=dop->next;
+                    }
+                    rule->left=dop->tree;
+                 }
+            }
+            else rule->left=Make_tree(rule->left,sub);
+        }
+        if (rule->right!=NULL){
+            if (rule->right->symbol>='a'&&rule->right->symbol<='z'||rule->right->symbol>='A'&&rule->right->symbol<='Z'){
+                if (!Find_in_variables(rule->right->symbol)){
+                
+                struct Subt* dop=sub;
+                string var;
+                var.push_back(rule->right->symbol);
+                while (dop->next!=NULL){
+                    if (dop->variables==var) break;
+                    else dop=dop->next;
+                }
+                rule->right=dop->tree;
+             
+                }
+            }
+            else rule->right=Make_tree(rule->right,sub);
+        }
+        if (rule->left==NULL&&rule->right==NULL){
+            if (rule->symbol>='a'&&rule->symbol<='z'||rule->symbol>='A'&&rule->symbol<='Z'){
+                if (!Find_in_variables(rule->symbol)){
+                    struct Subt* dop=sub;
+                    string var;
+                    var.push_back(rule->symbol);
+                    while (dop->next!=NULL){
+                        if (dop->variables==var) break;
+                        else dop=dop->next;
+                    }
+                    rule=dop->tree;
+             
+                }
+            }
+        }
+    }
+    return rule;
+}
+
+struct Tree* COPY(struct Tree*q,struct Tree* p){
+    if (p!=NULL){
+        if (q==NULL){
+            q=new(struct Tree);
+            q->left=q->right=NULL;
+            q->symbol=p->symbol;
+        }
+        if (p->left!=NULL) q->left=COPY(q->left,p->left);
+        if (p->right!=NULL) q->right=COPY(q->right,p->right);
+    }
+   return q;
+}
+struct Tree* Check_Center(int *error,struct Myrules* p, struct Tree* regextree){
+    if (p!=NULL&&regextree!=NULL){
+        struct Subt* s=NULL;
+        s=Substitution(s,regextree,p->before);
+       
+            s=Unification(s,s);
+            if (s!=NULL){
+                struct Tree* dop_tree=NULL;
+                *error=1;
+                struct Tree* per=NULL;
+                per=COPY(per,p->after);
+                dop_tree=Make_tree(per,s);
+                if (dop_tree!=NULL) regextree=dop_tree;
+            }
+       
+    }
+    return regextree;
+}
+
+
+
+struct Tree* TREE_PASS(int *error,struct Myrules* p,struct Tree* regextree){
+    if (*error==0&&p!=NULL&&regextree!=NULL){
+        if (regextree->left!=NULL){
+            struct Subt* s=NULL;
+            s=Substitution(s,regextree->left,p->before);
+            
+            s=Unification(s,s);
+            if (s!=NULL){
+                struct Tree* dop_tree=NULL;
+                *error=1;
+                struct Tree* per=NULL;
+                per=COPY(per,p->after);
+                dop_tree=Make_tree(per,s);
+                if (dop_tree!=NULL) regextree->left=dop_tree;
+            }
+            else regextree->left=TREE_PASS(error,p,regextree->left);
+            
+            
+            
+        }
+         if (*error==0&&regextree->right!=NULL){
+            struct Subt* s=NULL;
+            s=Substitution(s,regextree->right,p->before);
+ 
+            s=Unification(s,s);
+            if (s!=NULL){
+                struct Tree* dop_tree=NULL;
+                *error=1;
+                struct Tree* per=NULL;
+                per=COPY(per,p->after);
+                dop_tree=Make_tree(per,s);
+                if (dop_tree!=NULL) regextree->right=dop_tree;
+            }
+            else if (*error==0) {
+                regextree->left=TREE_PASS(error,p,regextree->left);
+                regextree->right=TREE_PASS(error,p,regextree->right);
+                
+                
+
+            }
+        }
+    }
+    return regextree;
+}
+
+struct Tree* Normalization(struct Tree* regex,struct Myrules *p){
+    struct Myrules* dop=p;
+    int error=0;
+    int t=0;
+    while (dop!=NULL){
+        regex=Check_Center(&error,dop,regex);
+        error=0;
+         regex=TREE_PASS(&error,dop,regex);
+        if (error==1) dop=p;
+        else dop=dop->next;
+        error=0;
+    }
+    
+    return regex;
+}
+
+
+
+void input_file(){
+    ifstream in("test6.txt");
+    getline(in,regex);
+    if (!regex.size()) {
+        error=1;
+        return;
+    };
+    string str;
+    while (getline(in,str)){
+        if (str.size()) rules.push_back(str);
+    }
+}
+
+int main(){
+    input_file();
+    if (error){
+        cout<<"ERROR";
+        return 0;
+    }
+    
+    manyrules=DeleteRules(manyrules,0);
+    regex=Clear_str(regex);
+    Find_variables_in_regex();
+    struct Tree* regex_tree=NULL;
+    regex_tree=Tree_Make(regex_tree,regex);
+    regex_tree=Normalization(regex_tree,manyrules);
+    Printtree(regex_tree);
+    
+}
