@@ -470,10 +470,44 @@ struct Tree* Normalization(struct Tree* regex,struct Myrules *p){
     return regex;
 }
 
+string Show(string str,struct Tree* p){
 
+    if (p!=NULL){
+        if (p->symbol=='*'){
+            if (p->left->symbol>='a'&&p->left->symbol<='z'||p->left->symbol>='A'&&p->left->symbol<='Z'){
+                str+=Show(str,p->left);
+                str+='*';
+            }
+            else{
+                string dop_str=str;
+                str+='(';
+                str+=Show(dop_str,p->left);
+                str+=')';
+                str+='*';
+            }
+        }
+       else if (p->symbol=='|'){
+            string dop_str=str;
+            str+='(';
+            str+=Show(dop_str,p->left);
+            str+='|';
+            str+=Show(dop_str,p->right);
+            str+=')';
+        }
+       else if (p->symbol=='+'){
+            string dop_str=str;
+            str+='(';
+            str+=Show(dop_str,p->left);
+            str+=Show(dop_str,p->right);
+            str+=')';
+        }
+        else str+=p->symbol;
+    }
+    return str;
+}
 
 void input_file(){
-    ifstream in("test6.txt");
+    ifstream in("test7.txt");
     getline(in,regex);
     if (!regex.size()) {
         error=1;
@@ -498,6 +532,9 @@ int main(){
     struct Tree* regex_tree=NULL;
     regex_tree=Tree_Make(regex_tree,regex);
     regex_tree=Normalization(regex_tree,manyrules);
+    string answer="";
+    answer=Show(answer,regex_tree);
     Printtree(regex_tree);
-    
+    cout<<"\n";
+    cout<<answer;
 }
