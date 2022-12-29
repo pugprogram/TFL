@@ -355,7 +355,7 @@ void Delete_elem(struct Multy* dop, struct Multy* prev){
     answer=dop_p;
 }
 
-
+//hello
 void Contification(){
     struct Multy* p=answer;
     struct Multy* q=p;
